@@ -10,10 +10,14 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ListView;
+import android.widget.SimpleCursorAdapter;
 import android.widget.TextView;
+import android.widget.Toast;
 
 
-public class MainActivity extends ActionBarActivity {
+public class MainActivity extends ActionBarActivity  {
 
     CourseDBHelper helper;
 
@@ -21,6 +25,8 @@ public class MainActivity extends ActionBarActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        helper = new CourseDBHelper(this);
 
     }
 
@@ -30,6 +36,19 @@ public class MainActivity extends ActionBarActivity {
 
         // This method is called when this activity is put foreground.
 
+        SQLiteDatabase db = helper.getReadableDatabase();
+        Cursor cursor = db.rawQuery("SELECT SUM(credit * value) AS tgp, SUM(credit) AS tcd FROM course ORDER BY _id ASC;", null);
+        cursor.moveToFirst(); // get the first row
+        Double tgp = cursor.getDouble(0); // get the first column
+        Double tcd = cursor.getDouble(1); // get the first column
+
+        TextView tv1 = (TextView)findViewById(R.id.tvGP);
+        TextView tv2 = (TextView)findViewById(R.id.tvCR);
+        TextView tv3 = (TextView)findViewById(R.id.tvGPA);
+
+        tv1.setText(String.format("%.2f",tgp));
+        tv2.setText(String.format("%.0f",tcd));
+        tv3.setText(String.format("%.2f",tgp / tcd));
     }
 
     public void buttonClicked(View v) {
@@ -49,6 +68,19 @@ public class MainActivity extends ActionBarActivity {
 
             case R.id.btReset:
 
+                SQLiteDatabase db = helper.getWritableDatabase();
+
+                int n = db.delete("course",
+                        "",null);
+
+                    Toast t = Toast.makeText(this.getApplicationContext(),
+                            "Successfully deleted all items.",
+                            Toast.LENGTH_SHORT);
+                    t.show();
+
+                    onResume();
+                db.close();
+
                 break;
         }
     }
@@ -61,6 +93,15 @@ public class MainActivity extends ActionBarActivity {
                 int credit = data.getIntExtra("credit", 0);
                 String grade = data.getStringExtra("grade");
 
+                // Add temporary data
+                SQLiteDatabase dbw = helper.getWritableDatabase();
+                ContentValues ri = new ContentValues();
+                ri.put("code", code);
+                ri.put("credit", credit);
+                ri.put("grade", grade);
+                ri.put("value", gradeToValue(grade));
+                long new_id = dbw.insert("course", null, ri);
+                dbw.close();
             }
         }
 
@@ -85,6 +126,7 @@ public class MainActivity extends ActionBarActivity {
         else
             return 0.0;
     }
+
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
